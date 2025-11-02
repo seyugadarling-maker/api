@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Server Controller</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .status.running {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.stopped {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .server-info {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Minecraft Server Controller</h1>
+        
+        <div class="form-group">
+            <label for="motd">MOTD (Message of the Day):</label>
+            <input type="text" id="motd" name="motd" value="A Minecraft Server" placeholder="Enter server MOTD">
+        </div>
+        
+        <div class="form-group">
+            <label for="gamemode">Gamemode:</label>
+            <select id="gamemode" name="gamemode">
+                <option value="survival">Survival</option>
+                <option value="creative">Creative</option>
+                <option value="adventure">Adventure</option>
+                <option value="spectator">Spectator</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="difficulty">Difficulty:</label>
+            <select id="difficulty" name="difficulty">
+                <option value="peaceful">Peaceful</option>
+                <option value="easy">Easy</option>
+                <option value="normal" selected>Normal</option>
+                <option value="hard">Hard</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="maxPlayers">Max Players:</label>
+            <input type="number" id="maxPlayers" name="maxPlayers" value="20" min="1" max="100">
+        </div>
+        
+        <button onclick="startServer()">Start Minecraft Server</button>
+        <button onclick="stopServer()" style="background-color: #dc3545; margin-top: 10px;">Stop Server</button>
+        
+        <div id="status" class="status stopped">
+            Server Status: Stopped
+        </div>
+        
+        <div id="serverInfo" class="server-info" style="display: none;">
+            <!-- Server info will appear here -->
+        </div>
+    </div>
+
+    <script>
+        async function startServer() {
+            const motd = document.getElementById('motd').value;
+            const gamemode = document.getElementById('gamemode').value;
+            const difficulty = document.getElementById('difficulty').value;
+            const maxPlayers = document.getElementById('maxPlayers').value;
+            
+            const response = await fetch('/start-server', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    motd: motd,
+                    gamemode: gamemode,
+                    difficulty: difficulty,
+                    maxPlayers: parseInt(maxPlayers)
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                document.getElementById('status').className = 'status running';
+                document.getElementById('status').innerHTML = 'Server Status: Running';
+                
+                document.getElementById('serverInfo').style.display = 'block';
+                document.getElementById('serverInfo').innerHTML = `
+                    <strong>Server Information:</strong><br>
+                    MOTD: ${result.server_config.motd}<br>
+                    Gamemode: ${result.server_config.gamemode}<br>
+                    Difficulty: ${result.server_config.difficulty}<br>
+                    Max Players: ${result.server_config.max_players}<br>
+                    Port: ${result.server_config.port}<br>
+                    Connect using: <strong>localhost:${result.server_config.port}</strong>
+                `;
+            } else {
+                alert('Error starting server: ' + result.error);
+            }
+        }
+        
+        async function stopServer() {
+            const response = await fetch('/stop-server', {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                document.getElementById('status').className = 'status stopped';
+                document.getElementById('status').innerHTML = 'Server Status: Stopped';
+                document.getElementById('serverInfo').style.display = 'none';
+            } else {
+                alert('Error stopping server: ' + result.error);
+            }
+        }
+        
+        // Check server status on page load
+        async function checkStatus() {
+            const response = await fetch('/server-status');
+            const status = await response.json();
+            
+            if (status.running) {
+                document.getElementById('status').className = 'status running';
+                document.getElementById('status').innerHTML = 'Server Status: Running';
+                document.getElementById('serverInfo').style.display = 'block';
+                document.getElementById('serverInfo').innerHTML = `
+                    <strong>Server Information:</strong><br>
+                    MOTD: ${status.config.motd}<br>
+                    Gamemode: ${status.config.gamemode}<br>
+                    Difficulty: ${status.config.difficulty}<br>
+                    Max Players: ${status.config.max_players}<br>
+                    Port: ${status.config.port}<br>
+                    Connect using: <strong>localhost:${status.config.port}</strong>
+                `;
+            }
+        }
+        
+        checkStatus();
+    </script>
+</body>
+</html>
